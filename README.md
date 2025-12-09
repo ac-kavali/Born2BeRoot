@@ -662,55 +662,222 @@ sudo usermod -s /bin/bash username
 
 ## Monitoring Script
 
-### Understanding System Commands
+### The Complete Monitoring Script
 
-#### `uname -a` Command
-
+Create the script file:
+```bash
+sudo vim /usr/local/bin/monitoring.sh
 ```
-Linux achahi42 6.1.0-41-amd64 #1 SMP PREEMPT_DYNAMIC Debian 6.1.158-1 (date) x86_64 GNU/Linux
+
+Add this complete script:
+
+```bash
+#!/bin/bash
+
+# ARCH - System Architecture Information
+arch=$(uname -a)
+
+# CPU PHYSICAL - Count of Physical CPUs
+cpuf=$(grep "physical id" /proc/cpuinfo | sort -u | wc -l)
+
+# CPU VIRTUAL - Count of Virtual CPUs (cores/threads)
+cpuv=$(grep -c "processor" /proc/cpuinfo)
+
+# RAM - Memory Usage Statistics
+ram_total=$(free --mega | awk '$1 == "Mem:" {print $2}')
+ram_use=$(free --mega | awk '$1 == "Mem:" {print $3}')
+ram_percent=$(awk "BEGIN {printf \"%.2f\", ($ram_use/$ram_total)*100}")
+
+# DISK - Storage Usage (excluding /boot partition)
+disk_total=$(df -m | grep "^/dev/" | grep -v "/boot" | awk '{t+=$2} END {printf "%.1f", t/1024}')
+disk_use=$(df -m | grep "^/dev/" | grep -v "/boot" | awk '{u+=$3} END {printf "%.1f", u/1024}')
+disk_percent=$(df -m | grep "^/dev/" | grep -v "/boot" | awk '{u+=$3; t+=$2} END {printf "%d", (u/t)*100}')
+
+# CPU LOAD - Current CPU Usage Percentage
+idle=$(vmstat 1 2 | tail -1 | awk '{print $15}')
+cpu_fin=$(awk "BEGIN {printf \"%.1f\", 100 - $idle}")
+
+# LAST BOOT - System Last Boot Time
+lb=$(who -b | awk '$1=="system" {print $3 " " $4}')
+
+# LVM USE - Check if LVM is Active
+lvmu=$(if lsblk | grep -q "lvm"; then echo "yes"; else echo "no"; fi)
+
+# TCP CONNECTIONS - Count of Established TCP Connections
+tcpc=$(ss -ta | grep -c ESTAB)
+
+# USER LOG - Number of Logged-in Users
+ulog=$(users | wc -w)
+
+# NETWORK - IP Address and MAC Address
+ip=$(hostname -I)
+mac=$(ip link | grep "link/ether" | awk '{print $2}')
+
+# SUDO - Count of Sudo Commands Executed
+cmnd=$(journalctl _COMM=sudo 2>/dev/null | grep -c COMMAND)
+
+# Display all information using wall command
+wall "Architecture: $arch
+CPU physical: $cpuf
+vCPU: $cpuv
+Memory Usage: ${ram_use}MB/${ram_total}MB (${ram_percent}%)
+Disk Usage: ${disk_use}GB/${disk_total}GB (${disk_percent}%)
+CPU load: ${cpu_fin}%
+Last boot: $lb
+LVM use: $lvmu
+Connections TCP: $tcpc ESTABLISHED
+User log: $ulog
+Network: IP $ip ($mac)
+Sudo: $cmnd cmd"
 ```
 
-- `Linux` - the name of the kernel
-- `achahi` - the hostname
-- `6.1.0-41-amd` - the kernel version
-- `debian 6.1.158-1` - base system distribution
+**Make the script executable:**
+```bash
+sudo chmod +x /usr/local/bin/monitoring.sh
+```
 
-#### `lscpu` Command
+### Script Breakdown and Explanation
 
-This command displays more details about the CPU.
+#### 1. Architecture (`arch`)
+```bash
+arch=$(uname -a)
+```
+- **Command:** `uname -a` displays all system information
+- **Output example:** `Linux achahi42 6.1.0-41-amd64 #1 SMP PREEMPT_DYNAMIC Debian 6.1.158-1 x86_64 GNU/Linux`
+- **Shows:** Kernel name, hostname, kernel version, system architecture
 
-#### `ss` Command
+#### 2. Physical CPUs (`cpuf`)
+```bash
+cpuf=$(grep "physical id" /proc/cpuinfo | sort -u | wc -l)
+```
+- **Reads:** `/proc/cpuinfo` file containing CPU information
+- **grep "physical id":** Finds lines with physical CPU IDs
+- **sort -u:** Sorts and keeps unique entries only
+- **wc -l:** Counts the number of unique physical CPUs
 
-It stands for **socket statistics**.
-- `-a` option to show all sockets
-- `-t` show TCP connections
+#### 3. Virtual CPUs (`cpuv`)
+```bash
+cpuv=$(grep -c "processor" /proc/cpuinfo)
+```
+- **grep -c "processor":** Counts all processor entries (cores/threads)
+- **Shows:** Total number of virtual CPUs available to the system
+
+#### 4. RAM Usage (`ram_total`, `ram_use`, `ram_percent`)
+```bash
+ram_total=$(free --mega | awk '$1 == "Mem:" {print $2}')
+ram_use=$(free --mega | awk '$1 == "Mem:" {print $3}')
+ram_percent=$(awk "BEGIN {printf \"%.2f\", ($ram_use/$ram_total)*100}")
+```
+- **free --mega:** Displays memory in megabytes
+- **awk '$1 == "Mem:"':** Filters the "Mem:" row
+- **{print $2}:** Total RAM (column 2)
+- **{print $3}:** Used RAM (column 3)
+- **awk "BEGIN {printf...":** Calculates percentage with 2 decimal places
+
+#### 5. Disk Usage (`disk_total`, `disk_use`, `disk_percent`)
+```bash
+disk_total=$(df -m | grep "^/dev/" | grep -v "/boot" | awk '{t+=$2} END {printf "%.1f", t/1024}')
+disk_use=$(df -m | grep "^/dev/" | grep -v "/boot" | awk '{u+=$3} END {printf "%.1f", u/1024}')
+disk_percent=$(df -m | grep "^/dev/" | grep -v "/boot" | awk '{u+=$3; t+=$2} END {printf "%d", (u/t)*100}')
+```
+- **df -m:** Displays disk usage in megabytes
+- **grep "^/dev/":** Filters only device partitions
+- **grep -v "/boot":** Excludes /boot partition (not user-accessible storage)
+- **awk '{t+=$2}':** Sums total space (column 2)
+- **END {printf "%.1f", t/1024}:** Converts MB to GB with 1 decimal place
+- **{u+=$3}:** Sums used space (column 3)
+- **{printf "%d", (u/t)*100}:** Calculates percentage as integer
+
+#### 6. CPU Load (`cpu_fin`)
+```bash
+idle=$(vmstat 1 2 | tail -1 | awk '{print $15}')
+cpu_fin=$(awk "BEGIN {printf \"%.1f\", 100 - $idle}")
+```
+- **vmstat 1 2:** Runs vmstat twice with 1-second interval
+- **tail -1:** Takes the second (live) sample
+- **awk '{print $15}':** Extracts idle CPU percentage (column 15)
+- **100 - $idle:** Calculates actual CPU usage (100% - idle%)
+
+> **Note**  
+> We use the second sample because the first one shows average since boot, not current usage.
+
+#### 7. Last Boot (`lb`)
+```bash
+lb=$(who -b | awk '$1=="system" {print $3 " " $4}')
+```
+- **who -b:** Shows last system boot time
+- **awk:** Extracts date (column 3) and time (column 4)
+
+#### 8. LVM Status (`lvmu`)
+```bash
+lvmu=$(if lsblk | grep -q "lvm"; then echo "yes"; else echo "no"; fi)
+```
+- **lsblk:** Lists block devices
+- **grep -q "lvm":** Quietly searches for "lvm" in output
+- **Returns:** "yes" if LVM is found, "no" otherwise
+
+#### 9. TCP Connections (`tcpc`)
+```bash
+tcpc=$(ss -ta | grep -c ESTAB)
+```
+- **ss -ta:** Shows all TCP sockets
+- **grep -c ESTAB:** Counts established connections
+
+#### 10. Logged Users (`ulog`)
+```bash
+ulog=$(users | wc -w)
+```
+- **users:** Lists currently logged-in users
+- **wc -w:** Counts number of words (users)
+
+#### 11. Network Information (`ip`, `mac`)
+```bash
+ip=$(hostname -I)
+mac=$(ip link | grep "link/ether" | awk '{print $2}')
+```
+- **hostname -I:** Displays all IP addresses
+- **ip link:** Shows network interfaces
+- **grep "link/ether":** Finds Ethernet MAC address line
+- **awk '{print $2}':** Extracts MAC address (column 2)
+
+#### 12. Sudo Commands Count (`cmnd`)
+```bash
+cmnd=$(journalctl _COMM=sudo 2>/dev/null | grep -c COMMAND)
+```
+- **journalctl _COMM=sudo:** Filters systemd journal for sudo entries
+- **2>/dev/null:** Suppresses error messages
+- **grep -c COMMAND:** Counts lines containing "COMMAND"
+
+> **Understanding journalctl**  
+> `journalctl` is the tool that lets you read, filter, and query logs stored in systemd's binary format. `_COMM=sudo` filters its output to just sudo command entries.
+
+#### 13. Display Information (`wall`)
+```bash
+wall "Architecture: $arch
+..."
+```
+- **wall:** Broadcasts message to all logged-in users' terminals
+- **Displays:** All collected system information in a formatted message
 
 ### Essential System Utilities for the Script
 
-#### `bc` (Basic Calculator)
-Command-line calculator for mathematical operations and floating-point calculations in scripts.
+#### Required Packages
 
-#### `sysstat` (System Statistics)
-Collection of performance monitoring tools (sar, iostat, mpstat) to track CPU, memory, and I/O usage.
+You need these utilities for the script to work:
+
+**`bc` (Basic Calculator)**
+- Command-line calculator for mathematical operations
+- Used for floating-point calculations in scripts
+
+**`sysstat` (System Statistics)**
+- Collection of performance monitoring tools
+- Includes: sar, iostat, mpstat
+- Used to track CPU, memory, and I/O usage
 
 #### Installation
 ```bash
 sudo apt install bc sysstat
 ```
-
-### Important Notes
-
-> **Remember**  
-> We excluded the `/boot` partition because it's not user-accessible storage.
-
-> **Remember**  
-> We use the second sample of the output because the first one is not for live statements.
-
-### Understanding journalctl
-
-**`journalctl`** is the tool/command set that lets you read, filter, and query logs stored in systemd's binary format.
-
-`_COMM=name` makes it able to filter its output to just the command names.
 
 ### What Cron Is
 
@@ -719,18 +886,19 @@ sudo apt install bc sysstat
 - **`cron`** is a Linux utility to run scripts or commands **automatically at scheduled times**
 - **You do not need "all terminals"** — cron runs tasks in the background, independent of terminal sessions
 
-#### To Edit It:
+#### Schedule the Script with Cron
+
+Edit the crontab:
 ```bash
-crontab -e
+sudo crontab -e
 ```
 
-It opens a file where you can add your script. Add this at the end of the file:
-
+Add this line at the end to run the script every 10 minutes:
 ```bash
-*/10 * * * * /path/to/your/script.sh
+*/10 * * * * /usr/local/bin/monitoring.sh
 ```
 
-Each asterisk represents a timeline. Just add a slash and type a number after:
+#### Understanding Cron Syntax
 
 ```
 * * * * * command_to_run
@@ -740,6 +908,45 @@ Each asterisk represents a timeline. Just add a slash and type a number after:
 │ │ └─── day of month (1-31)
 │ └──── hour (0-23)
 └───── minute (0-59)
+```
+
+**Examples:**
+- `*/10 * * * *` - Every 10 minutes
+- `0 * * * *` - Every hour at minute 0
+- `0 0 * * *` - Every day at midnight
+- `0 0 * * 0` - Every Sunday at midnight
+
+### Testing the Script
+
+**Run manually to test:**
+```bash
+sudo /usr/local/bin/monitoring.sh
+```
+
+**Check cron logs to verify automatic execution:**
+```bash
+grep CRON /var/log/syslog
+```
+
+### Expected Output
+
+When the script runs, all users will see a message like this on their terminals:
+
+```
+Broadcast message from root@achahi42 (somewhere) (Tue Dec 10 10:30:01 2024):
+
+Architecture: Linux achahi42 6.1.0-41-amd64 #1 SMP PREEMPT_DYNAMIC Debian 6.1.158-1 x86_64 GNU/Linux
+CPU physical: 1
+vCPU: 2
+Memory Usage: 156MB/987MB (15.81%)
+Disk Usage: 2.5GB/30.0GB (8%)
+CPU load: 12.5%
+Last boot: 2024-12-09 14:23
+LVM use: yes
+Connections TCP: 3 ESTABLISHED
+User log: 2
+Network: IP 10.0.2.15 (08:00:27:51:47:a8)
+Sudo: 42 cmd
 ```
 
 ---
