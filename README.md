@@ -50,7 +50,7 @@
   - [Finish Setup](#step-10-finish-the-setup)
   - [Troubleshooting](#quick-troubleshooting)
   - [Bonus Service](#bonus-service---monitorix)
-  - .[Resources](#📚-Resources)
+  - [Resources](#📚-Resources)
 
 ---
 
