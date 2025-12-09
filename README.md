@@ -50,6 +50,7 @@
   - [Finish Setup](#step-10-finish-the-setup)
   - [Troubleshooting](#quick-troubleshooting)
   - [Bonus Service](#bonus-service---monitorix)
+  - .[Resources](#📚-Resources)
 
 ---
 
@@ -1182,3 +1183,32 @@ http://YOUR_SERVER_IP:8080/monitorix
 ```
 
 ---
+
+
+# 📚 Resources
+
+Documentation Used
+
+Debian Official Docs
+
+VirtualBox Documentation
+
+GNU/Linux Manual Pages
+
+42 Network Intranet Resources
+
+PAM / sudo / SSH configuration guides
+
+UFW & firewalld documentation
+
+AI Use Explanation
+
+AI was used only for:
+
+Clarifying theoretical concepts
+
+Improving the writing quality of the README
+
+Helping structure explanations
+
+AI was not used for configuration files, commands, or implementation (as required by 42 guidelines).
