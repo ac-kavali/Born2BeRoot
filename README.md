@@ -15,7 +15,7 @@ This README explains all the concepts used, why I chose Debian, how each compone
 
 ## 📑 Table of Contents
 
--   [Instructions](#instructions-how-to-userun-the-project)
+-   [Instructions](#-instructions-how-to-userun-the-project)
 -   [Why I Chose Debian](#-why-i-chose-debian)
 -   [Virtualization](#virtualization)
 -   [Hypervisors](#hypervisors)
