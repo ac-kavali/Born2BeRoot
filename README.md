@@ -50,7 +50,7 @@
   - [Finish Setup](#step-10-finish-the-setup)
   - [Troubleshooting](#quick-troubleshooting)
   - [Bonus Service](#bonus-service---monitorix)
-  - [Resources](#📚-resources)
+  - [Resources](#resources)
 
 ---
 
@@ -1185,7 +1185,7 @@ http://YOUR_SERVER_IP:8080/monitorix
 ---
 
 
-# 📚 Resources
+# Resources
 
 Documentation Used
 
